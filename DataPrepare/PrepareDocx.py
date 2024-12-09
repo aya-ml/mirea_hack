@@ -51,47 +51,41 @@ class RussianDocxGenerator:
 
 class DocxParser:
     @classmethod
-    def parse_tables(cls, doc: Document) -> list:
-        return [
-            [
-                [cell.text.strip() for cell in row.cells]
-                for row in table.rows
-            ]
-            for table in doc.tables
-        ]
-
-    @classmethod
-    def parse_lists(cls, doc: Document) -> list:
-        lists = []
+    def parse_docx(cls, file_path: str) -> list:
+        doc = Document(file_path)
+        result = []
+        tables_iter = iter(doc.tables)
         current_list = []
 
         for paragraph in doc.paragraphs:
-            text = paragraph.text.strip()
-            if not text:
-                if current_list:
-                    lists.append(current_list)
-                    current_list = []
-                continue
-
             style_name = paragraph.style.name.lower()
-            is_list = "list paragraph" in style_name
+            text = paragraph.text.strip()
 
-            if is_list:
-                current_list.append(text)
+            if "list paragraph" in style_name:
+                if text:
+                    current_list.append(text)
+                continue
             else:
                 if current_list:
-                    lists.append(current_list)
+                    result.append({"type": "list", "text": current_list})
                     current_list = []
 
+            if not text:
+                continue
+
+            result.append({"type": "paragraph", "text": text})
+
+            try:
+                if len(paragraph._element.xpath("./following-sibling::w:tbl")) > 0:
+                    table = next(tables_iter)
+                    table_data = [
+                        [[cell.text.strip() for cell in row.cells] for row in table.rows]
+                    ]
+                    result.append({"type": "table", "text": table_data})
+            except StopIteration:
+                pass
+
         if current_list:
-            lists.append(current_list)
+            result.append({"type": "list", "text": current_list})
 
-        return lists
-
-    @classmethod
-    def parse_docx(cls, file_path: str) -> dict:
-        doc = Document(file_path)
-        return {
-            "tables": cls.parse_tables(doc),
-            "lists": cls.parse_lists(doc)
-        }
+        return result
