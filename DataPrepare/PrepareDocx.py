@@ -18,7 +18,8 @@ class DocxParser:
                 continue
             else:
                 if current_list:
-                    result.append({"type": "list", "text": current_list})
+                    list_text = " ".join(current_list)
+                    result.append({"type": "list", "text": list_text})
                     current_list = []
 
             if not text:
@@ -29,14 +30,19 @@ class DocxParser:
             try:
                 if len(paragraph._element.xpath("./following-sibling::w:tbl")) > 0:
                     table = next(tables_iter)
-                    table_data = [
-                        [[cell.text.strip() for cell in row.cells] for row in table.rows]
-                    ]
-                    result.append({"type": "table", "text": table_data})
+                    table_data = []
+
+                    for row in table.rows:
+                        row_text = " | ".join([cell.text.strip() for cell in row.cells if cell.text.strip()])
+                        table_data.append(row_text)
+
+                    table_text = "\n".join(table_data)
+                    result.append({"type": "table", "text": table_text})
             except StopIteration:
                 pass
 
         if current_list:
-            result.append({"type": "list", "text": current_list})
+            list_text = " ".join(current_list)
+            result.append({"type": "list", "text": list_text})
 
         return result
