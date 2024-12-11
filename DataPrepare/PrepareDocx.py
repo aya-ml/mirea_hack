@@ -30,13 +30,24 @@ class DocxParser:
             try:
                 if len(paragraph._element.xpath("./following-sibling::w:tbl")) > 0:
                     table = next(tables_iter)
-                    table_data = []
+                    table_data = {}
 
+                    # Инициализация столбцов
                     for row in table.rows:
-                        row_text = " | ".join([cell.text.strip() for cell in row.cells if cell.text.strip()])
-                        table_data.append(row_text)
+                        for i, cell in enumerate(row.cells):
+                            column_name = f"Column {i+1}"
 
-                    table_text = "\n".join(table_data)
+                            # Инициализируем список, если этого еще не сделали
+                            if column_name not in table_data:
+                                table_data[column_name] = []
+
+                            # Добавляем данные в соответствующий столбец
+                            cell_text = cell.text.strip()
+                            if cell_text:
+                                table_data[column_name].append(cell_text)
+
+                    # Преобразуем данные в нужный формат
+                    table_text = "; ".join([f"{column}: {', '.join(values)}" for column, values in table_data.items()])
                     result.append({"type": "table", "text": table_text})
             except StopIteration:
                 pass
