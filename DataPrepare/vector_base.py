@@ -1,15 +1,11 @@
-from transformers import T5ForConditionalGeneration, T5Tokenizer
 from sentence_transformers import SentenceTransformer
 import faiss
 
-class BaseGenerator:
-    def __init__(self, embedding_model_name="paraphrase-distilroberta-base-v1", generation_model_name="t5-3b"):
+class VectorBase:
+    def __init__(self, embedding_model_name="paraphrase-distilroberta-base-v1"):
         self.embedding_model = SentenceTransformer(embedding_model_name)
         self.index = None
         self.entries = []
-
-        self.text_generation_model = T5ForConditionalGeneration.from_pretrained(generation_model_name)
-        self.tokenizer = T5Tokenizer.from_pretrained(generation_model_name)
 
     def fit(self, documents: list):
         if not documents:
@@ -56,17 +52,9 @@ class BaseGenerator:
         for i, d in zip(indices[0], distances[0]):
             if i < len(self.entries):
                 results.append({
-                    "type": self.entries[i]["type"],
                     "text": self.entries[i]["text"],
+                    "id": self.entries[i]["chunk_id"],
                     "distance": d
                 })
 
         return results
-
-    def generate_answer(self, query, context, max_length=1024):
-        input_text = f"question: {query} context: {context}"
-
-        inputs = self.tokenizer(input_text, return_tensors="pt", truncation=True, padding=True, max_length=1024)
-        outputs = self.text_generation_model.generate(**inputs, max_length=max_length, num_beams=7, early_stopping=True)
-
-        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
